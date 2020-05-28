@@ -5,20 +5,18 @@ import (
 )
 
 func main() {
-	for {
-		persistenceTest()
-
-		// fmt.Print(">>")
-		// var inputInt int64
-		// fmt.Scan(&inputInt)
-		// fmt.Print("Steps:\t\t")
-		// fmt.Println(inputInt)
-		// persistenceResult := persistence(inputInt)
-		// fmt.Print("Persistance:\t")
-		// fmt.Println(persistenceResult)
-		// fmt.Println("")
-
-	}
+	persistenceTest()
+	// for {
+	// fmt.Print(">>")
+	// var inputInt int64
+	// fmt.Scan(&inputInt)
+	// fmt.Print("Steps:\t\t")
+	// fmt.Println(inputInt)
+	// persistenceResult := persistence(inputInt)
+	// fmt.Print("Persistance:\t")
+	// fmt.Println(persistenceResult)
+	// fmt.Println("")
+	// }
 }
 
 // TODO: Write a test to make sure that my changes don't mess with it
