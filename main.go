@@ -23,10 +23,20 @@ func nextNumber(lastNumber int64) int64 {
 	var candidate int64
 	candidate = lastNumber + 1
 	digitsSlice := getDigits(candidate)
-	for index, thisDigit := range digitsSlice[:len(digitsSlice)-1] {
-		nextDigit := digitsSlice[index+1]
+
+	// Replace all 1's and 0's with 2's
+	for index, thisDigit := range digitsSlice {
+		if (thisDigit == 0) || (thisDigit == 1) {
+			digitsSlice[index] = 2
+		}
+	}
+
+	// If any digit is not ascending, increase it to the previous digit
+	for i := len(digitsSlice) - 2; i >= 1; i-- {
+		thisDigit := digitsSlice[i]
+		nextDigit := digitsSlice[i-1]
 		if thisDigit > nextDigit {
-			digitsSlice[index+1] = thisDigit
+			digitsSlice[i-1] = thisDigit
 		}
 	}
 	return getNumber(digitsSlice)
