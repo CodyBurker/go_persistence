@@ -2,24 +2,47 @@ package main
 
 import (
 	"fmt"
+	"math"
 )
 
 func main() {
 	persistenceTest()
-	// for {
-	// fmt.Print(">>")
-	// var inputInt int64
-	// fmt.Scan(&inputInt)
-	// fmt.Print("Steps:\t\t")
-	// fmt.Println(inputInt)
-	// persistenceResult := persistence(inputInt)
-	// fmt.Print("Persistance:\t")
-	// fmt.Println(persistenceResult)
-	// fmt.Println("")
-	// }
+	for {
+		fmt.Print(">>")
+		var inputInt int64
+		fmt.Scan(&inputInt)
+		fmt.Println(nextNumber(inputInt))
+		fmt.Println("")
+	}
 }
 
-// TODO: Write a test to make sure that my changes don't mess with it
+// Function that generates the next candidate number
+func nextNumber(lastNumber int64) int64 {
+	// Check if numbers are in ascending order
+	// If not, then increment the next digit
+	var candidate int64
+	candidate = lastNumber + 1
+	digitsSlice := getDigits(candidate)
+	for index, thisDigit := range digitsSlice[:len(digitsSlice)-1] {
+		nextDigit := digitsSlice[index+1]
+		if thisDigit > nextDigit {
+			digitsSlice[index+1] = thisDigit
+		}
+	}
+	return getNumber(digitsSlice)
+}
+
+// Get number from slice of digits, with lowest first
+func getNumber(digitsSlice []int64) int64 {
+	var returnValue int64 = 0
+	for index, thisDigit := range digitsSlice {
+		returnValue = returnValue + int64(math.Pow10(index))*int64(thisDigit)
+		// Debugging:
+		//fmt.Printf("\tPower:\t%d\tReturnValue:\t%d\tDigit:\t%d\n", power, returnValue, thisDigit)
+	}
+	return returnValue
+}
+
 func persistenceTest() {
 	// Use known results from here: https://mathworld.wolfram.com/MultiplicativePersistence.html
 	testOutputs := [11]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
@@ -55,14 +78,11 @@ func persistence(n int64) int8 {
 	return p
 }
 
-// Function that multiplies all constituent digits
-func doMultiply(n int64) int64 {
-	// Make empty slice
+func getDigits(n int64) []int64 {
+	// Initialize empty slice
 	digitsSlice := make([]int64, 0, 1000)
-
 	var baseValue int64
 	baseValue = 10
-
 	for {
 		newDigit := n % baseValue
 		digitsSlice = append(digitsSlice, newDigit)
@@ -71,6 +91,13 @@ func doMultiply(n int64) int64 {
 			break
 		}
 	}
+	return digitsSlice
+}
+
+// Function that multiplies all constituent digits
+func doMultiply(n int64) int64 {
+	// Make empty slice
+	digitsSlice := getDigits(n)
 	// Loop over function to get next step
 
 	var returnDigit int64
