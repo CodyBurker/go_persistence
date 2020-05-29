@@ -7,12 +7,19 @@ import (
 
 func main() {
 	persistenceTest()
+
 	for {
 		fmt.Print(">>")
-		var inputInt int64
-		fmt.Scan(&inputInt)
-		fmt.Println(nextNumber(inputInt))
-		fmt.Println("")
+		var inputInt int64 = 0
+		var maxPersistance int8 = 0
+		for {
+			inputInt = nextNumber(inputInt)
+			result := persistence(inputInt)
+			if result > maxPersistance {
+				fmt.Printf("%d\t\t\t%d\n", inputInt, result)
+				maxPersistance = result
+			}
+		}
 	}
 }
 
@@ -32,7 +39,7 @@ func nextNumber(lastNumber int64) int64 {
 	}
 
 	// If any digit is not ascending, increase it to the previous digit
-	for i := len(digitsSlice) - 2; i >= 1; i-- {
+	for i := len(digitsSlice) - 1; i >= 1; i-- {
 		thisDigit := digitsSlice[i]
 		nextDigit := digitsSlice[i-1]
 		if thisDigit > nextDigit {
