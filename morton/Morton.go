@@ -1,139 +1,15 @@
-// Plan:
-// Create a function that decodes a morton code
-// Create a function to test the persistance of morton code
-// Main function to wrap all that
-package main
+/*
+  Morton implements Z-Order Curve encoding and decoding for N-dimensions, using lookup tables and magic bits respectively.
+  In order to supply for N-dimensions, this library generates the magic bits used in decoding.  While this library does supply for N-dimensions, because this type of ordering uses bit interleaving for encoding it is limited by the width of the uint64 type divided by the number of dimensions (i.e., uint64/3 for 3 dimensions).
+*/
+package morton
 
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"sort"
-
-	"github.com/Jsewill/morton"
 )
 
-func main() {
-	// Morton decoding
-	m := new(morton.Morton)
-	m.Create(3, 512)
-	startValue1, _ := m.Encode([]uint32{12, 7, 2})
-	startValue := startValue1 - 100
-	endValue := startValue1 + 500
-	// Call
-	checkValues(startValue, endValue)
-
-}
-
-// Function that given start and end values, returns statistics, max, etc.
-func checkValues(startValue, endvalue uint64) (maxPersistenceValue uint64, maxPersistence int, avgP float64) {
-	// Create tables, magic bits for decoding morton to generate coordinates.
-	m := new(morton.Morton)
-	m.Create(3, 512)
-
-	// Variable to hold largest persistence across all values
-	maxPersistence = 0
-	// Variable to hold total persistence across all values (to use for average persistence)
-	totalPersistence := uint64(0)
-	// Variable to hold mortoncode value of vector with largest peristence found
-	maxPersistenceValue = startValue
-	// No idea why this is needed.
-	endValue := endvalue
-	// Loop over morton code values, checking each.
-	for i := startValue; i <= endValue; i++ {
-		// Decode values, save to variables for legibility
-		exponents := m.Decode(i)
-		x := exponents[0]
-		y := exponents[1]
-		z := exponents[2]
-		// Turn teh above exponent into a number
-		startValue := convertFactors(x, y, z)
-		// Get peristence of these numbers
-		persistence := getPersistence(startValue) + 1 // convertFactors finds the first level of persistence
-		// Keep track of total persistence
-		totalPersistence = totalPersistence + uint64(persistence)
-		if persistence >= maxPersistence {
-			maxPersistence = persistence
-			maxPersistenceValue = i
-		}
-		// // Print to command line
-		// fmt.Printf("p(%d,%d,%d)=\t%d\n", x, y, z, persistence)
-	}
-	// Average persistence across all checked values
-	avgP = float64(totalPersistence) / float64(endValue-startValue)
-	// // Print totals to command line:
-	// fmt.Printf("\tMaxValue:\t%d\n\tMaxP    :\t%d\n\tAvgP    :\t%f",
-	// 	maxPersistenceValue,
-	// 	maxPersistence,
-	// 	avgP)
-	return
-}
-
-//  f(x,y,z) = (2 ^ x) * (3 ^ y) * (7 ^ z)
-func convertFactors(x, y, z uint32) (result *big.Int) {
-	// result=1
-	result = big.NewInt(1)
-	// result= result * 2 ^ x
-	result.Mul(result, big.NewInt(1).Exp(big.NewInt(2), big.NewInt(int64(x)), nil))
-
-	// result=result * 3 ^ y
-	result.Mul(result, big.NewInt(1).Exp(big.NewInt(3), big.NewInt(int64(y)), nil))
-
-	// result=result * 7 ^ z
-	result.Mul(result, big.NewInt(1).Exp(big.NewInt(7), big.NewInt(int64(z)), nil))
-	return
-}
-
-// Get multiplicitive persitence of a number
-func multiplyDigits(inputNum *big.Int) *big.Int {
-
-	// The product of the digits to return
-	result := big.NewInt(1)
-	digit := big.NewInt(0)
-	// We are working in base 10
-	for {
-		base := big.NewInt(10)
-		// Get digit, remainder
-		inputNum, digit = inputNum.DivMod(inputNum, base, base)
-		// fmt.Printf("Intput:\t%s\nDigit:\t%s\nResult:\t%s\n", inputNum.String(), digit.String(), result.String())
-		// fmt.Print("Test:")
-		// fmt.Println(digit.Cmp(big.NewInt(0)))
-		// If digit is <= 0 but inputNum >0, there is a zero digit
-		if digit.Cmp(big.NewInt(0)) <= 0 {
-			if inputNum.Cmp(big.NewInt(0)) > 0 {
-				result := big.NewInt(0)
-				return result
-			}
-			// If digit <= 0 and result inputNum <= 0, we are at the end of the number - return results
-			return result
-
-		}
-		// Otherwise, multiply result by digit
-		result.Mul(result, digit)
-
-	}
-
-}
-
-func getPersistence(inputNum *big.Int) (returnInt int) {
-	returnInt = 0
-	base := big.NewInt(10)
-	for {
-		//fmt.Println(inputNum)
-		if inputNum.Cmp(base) < 0 {
-			return
-		}
-		inputNum = multiplyDigits(inputNum)
-		//		fmt.Println(inputNum)
-		returnInt = returnInt + 1
-	}
-
-}
-
-// Can't figure out how to properly install this:
-
-// Below code belongs to Jsewill at https://github.com/Jsewill/morton
-// I have no idea how to install the package properly so for now I am copying the code into my file
 type Table struct {
 	Index  uint8
 	Length uint32
