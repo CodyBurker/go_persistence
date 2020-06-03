@@ -9,96 +9,92 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
-	"sync"
+	"time"
 
 	"github.com/Jsewill/morton"
 )
 
 func main() {
-	// Morton decoding
+
+	// Start time
+	startTime := time.Now()
+
+	// Initialize variables
+	// Create morton table to decode ranges
 	m := new(morton.Morton)
 	m.Create(3, 512)
-	startValue1, _ := m.Encode([]uint32{12, 7, 2})
-	startValue := startValue1 - 100
-	endValue := startValue1 + 500
+	// Set number of concurrent goroutines
+	nThreads := 8
+	// Create buffered channel to gather results
+	resultsChan := make(chan results, nThreads)
+	// Set start and end values
+	startValue := uint64(0)
+	endValue := uint64(10000)
+	chunkSize := uint64(endValue-startValue+1) / uint64(nThreads)
 
-	for i := startValue; i < endValue; i++ {
-
+	// Assign chunks to goroutines
+	for i := uint64(1); i <= uint64(nThreads); i++ {
+		//fmt.Println("Starting thread.")
+		// For chanels 1 to (nThreads-1), assign 1/nThreads results
+		// For the last channel, give them the rest of the results
+		var threadStartValue uint64
+		var threadendValue uint64
+		if i < uint64(nThreads) {
+			threadStartValue = startValue + chunkSize*(i-1)
+			threadendValue = threadStartValue + chunkSize - 1
+		} else {
+			threadStartValue = startValue + chunkSize*(i-1)
+			threadendValue = endValue
+		}
+		go getResults(resultsChan, threadStartValue, threadendValue, *m)
 	}
-	var maxPersistence chan int = make(chan int, 0)
-	var maxPeristenceValue chan uint64 = make(chan uint64, startValue)
-	var totalPeristence chan uint64 = make(chan uint64, 0)
-
-	// Add a waitgroup
-	var wg sync.WaitGroup
-	wg.Add(int(1 + endValue - startValue))
-
-	for i := startValue; i < endValue; i++ {
-		go checkNumber(m, i, maxPersistence, maxPeristenceValue, totalPeristence)
+	// Gather results as threads finish
+	finalResults := results{0, 0, *big.NewInt(0)}
+	for i := 0; i < nThreads; i++ {
+		threadResults := <-resultsChan
+		if threadResults.maxPersistenceValue > finalResults.maxPersistenceValue {
+			threadResults.maxPersistenceValue = finalResults.maxPersistenceValue
+			threadResults.maxPersistenceNumber = finalResults.maxPersistenceNumber
+		}
+		finalResults.totalPeristence.Add(&threadResults.totalPeristence, &finalResults.totalPeristence)
 	}
-	wg.Wait()
-	fmt.Println(<-maxPersistence)
-	fmt.Println(<-maxPeristenceValue)
-	fmt.Println(<-totalPeristence)
+	elapsed := time.Since(startTime)
+	fmt.Printf("Threads:%d\tTime:%s", nThreads, elapsed)
+	fmt.Printf("Results:\n\tMaxPersistenceValue:\t%d\n\tTotalPersistence:\t%s", finalResults.maxPersistenceValue, finalResults.totalPeristence.String())
+
 }
 
-//// Function that given start and end values, returns statistics, max, etc.
-// func checkValues(startValue, endvalue uint64) (maxPersistenceValue uint64, maxPersistence int, avgP float64) {
-// 	// Create tables, magic bits for decoding morton to generate coordinates.
-// 	m := new(morton.Morton)
-// 	m.Create(3, 512)
+// Function to check a chunk of numbers
+func getResults(resultsChan chan results, startValue uint64, endValue uint64, decoder morton.Morton) {
 
-// 	// Variable to hold largest persistence across all checked values
-// 	maxPersistence = 0
-// 	// Variable to hold total persistence across all values (to use for average persistence)
-// 	totalPersistence := uint64(0)
-// 	// Variable to hold mortoncode value of vector with largest peristence found
-// 	maxPersistenceValue = startValue
-// 	// No idea why this is needed.
-// 	endValue := endvalue
-// 	// Loop over morton code values, checking each.
-// 	for i := startValue; i <= endValue; i++ {
-// 		// Decode values, save to variables for legibility
-// 		exponents := m.Decode(i)
-// 		x := exponents[0]
-// 		y := exponents[1]
-// 		z := exponents[2]
-// 		// Turn the above exponent into a number
-// 		startValue := convertFactors(x, y, z)
-// 		// Get peristence of these numbers
-// 		persistence := getPersistence(startValue) + 1 // convertFactors finds the first level of persistence
-// 		// Keep track of total persistence
-// 		totalPersistence = totalPersistence + uint64(persistence)
-// 		if persistence >= maxPersistence {
-// 			maxPersistence = persistence
-// 			maxPersistenceValue = i
-// 		}
-// 		// // Print to command line
-// 		// fmt.Printf("p(%d,%d,%d)=\t%d\n", x, y, z, persistence)
-// 	}
-// 	// Average persistence across all checked values
-// 	avgP = float64(totalPersistence) / float64(endValue-startValue)
-// 	// // Print totals to command line:
-// 	// fmt.Printf("\tMaxValue:\t%d\n\tMaxP    :\t%d\n\tAvgP    :\t%f",
-// 	// 	maxPersistenceValue,
-// 	// 	maxPersistence,
-// 	// 	avgP)
-// 	return
-// }
-
-// Concurrency function to check a single number, and return results to the channel
-func checkNumber(m *morton.Morton, number uint64, maxPersistence chan int, maxPeristenceValue chan uint64, totalPeristence chan uint64) {
-	exponents := m.Decode(number)
-	x := exponents[0]
-	y := exponents[1]
-	z := exponents[2]
-	product := convertFactors(x, y, z)
-	persistence := getPersistence(product)
-	if persistence >= <-maxPersistence {
-		maxPersistence <- persistence
-		maxPeristenceValue <- number
+	threadResults := results{0, 0, *big.NewInt(0)}
+	totalPeristence := big.NewInt(0)
+	// Loop over assigned chunk of numbers, and gather statistics
+	for i := startValue; i <= endValue; i++ {
+		startValue := decoder.Decode(i)
+		x := startValue[0]
+		y := startValue[1]
+		z := startValue[2]
+		loopNumber := convertFactors(x, y, z)
+		loopResults := getPersistence(loopNumber) + 1
+		if loopResults > threadResults.maxPersistenceValue {
+			threadResults.maxPersistenceValue = loopResults
+			threadResults.maxPersistenceNumber = i
+		}
+		totalPeristence.Add(totalPeristence, big.NewInt(int64(loopResults)))
 	}
-	totalPeristence <- uint64(persistence) + <-totalPeristence
+	threadResults.totalPeristence = *totalPeristence
+	fmt.Println(threadResults)
+	//fmt.Printf("Thread done evaluating:\t%d\t%d\n\t(%s\t%d\t%d)\n", startValue, endValue, threadResults.totalPeristence.String(), threadResults.maxPersistenceNumber, threadResults.maxPersistenceValue)
+	resultsChan <- threadResults
+	return
+}
+
+// A struct to pass results back to the main loop
+type results struct {
+	maxPersistenceValue  int
+	maxPersistenceNumber uint64
+	totalPeristence      big.Int
 }
 
 //  f(x,y,z) = (2 ^ x) * (3 ^ y) * (7 ^ z)
