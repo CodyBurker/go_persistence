@@ -13,7 +13,17 @@ import (
 )
 
 func main() {
+	// Set start and end values
+	startValue := uint64(0)
+	endValue := uint64(100)
+	// Set number of concurrent goroutines
+	nThreads := 8
 
+	getAllResults(startValue, endValue, nThreads)
+}
+
+// Function to check an entire range of numbers
+func getAllResults(startValue uint64, endValue uint64, nThreads int) results {
 	// Start time
 	startTime := time.Now()
 
@@ -21,13 +31,10 @@ func main() {
 	// Create morton table to decode ranges
 	m := new(morton.Morton)
 	m.Create(3, 512)
-	// Set number of concurrent goroutines
-	nThreads := 8
+
 	// Create buffered channel to gather results
 	resultsChan := make(chan results, nThreads)
-	// Set start and end values
-	startValue := uint64(0)
-	endValue := uint64(100)
+
 	chunkSize := uint64(endValue-startValue+1) / uint64(nThreads)
 
 	// Assign chunks to goroutines
@@ -59,7 +66,7 @@ func main() {
 	elapsed := time.Since(startTime)
 	fmt.Printf("Threads:%d\tTime:%s", nThreads, elapsed)
 	fmt.Printf("Results:\n\tMaxPersistenceValue:\t%d\n\tTotalPersistence:\t%s", finalResults.maxPersistenceValue, finalResults.totalPeristence.String())
-
+	return finalResults
 }
 
 // Function to check a chunk of numbers
