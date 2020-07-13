@@ -7,7 +7,6 @@ package main
 import (
 	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/Jsewill/morton"
 )
@@ -15,18 +14,18 @@ import (
 func main() {
 	// Set start and end values
 	startValue := uint64(0)
-	endValue := uint64(100)
+	endValue := uint64(1000000)
 	// Set number of concurrent goroutines
 	nThreads := 8
-
-	getAllResults(startValue, endValue, nThreads)
+	// Get results
+	theseResults := getAllResults(startValue, endValue, nThreads)
+	fmt.Println(theseResults)
 }
 
 // Function to check an entire range of numbers
 func getAllResults(startValue uint64, endValue uint64, nThreads int) results {
 	// Start time
-	startTime := time.Now()
-
+	// startTime := time.Now()
 	// Initialize variables
 	// Create morton table to decode ranges
 	m := new(morton.Morton)
@@ -34,12 +33,11 @@ func getAllResults(startValue uint64, endValue uint64, nThreads int) results {
 
 	// Create buffered channel to gather results
 	resultsChan := make(chan results, nThreads)
-
+	// Set the amount of numbers the first nThreads-1 goroutines will check
 	chunkSize := uint64(endValue-startValue+1) / uint64(nThreads)
 
 	// Assign chunks to goroutines
 	for i := uint64(1); i <= uint64(nThreads); i++ {
-		//fmt.Println("Starting thread.")
 		// For chanels 1 to (nThreads-1), assign 1/nThreads results
 		// For the last channel, give them the rest of the results
 		var threadStartValue uint64
@@ -48,6 +46,7 @@ func getAllResults(startValue uint64, endValue uint64, nThreads int) results {
 			threadStartValue = startValue + chunkSize*(i-1)
 			threadendValue = threadStartValue + chunkSize - 1
 		} else {
+			// If this is the final thread/goroutine, give it the rest
 			threadStartValue = startValue + chunkSize*(i-1)
 			threadendValue = endValue
 		}
@@ -58,14 +57,15 @@ func getAllResults(startValue uint64, endValue uint64, nThreads int) results {
 	for i := 0; i < nThreads; i++ {
 		threadResults := <-resultsChan
 		if threadResults.maxPersistenceValue > finalResults.maxPersistenceValue {
-			threadResults.maxPersistenceValue = finalResults.maxPersistenceValue
-			threadResults.maxPersistenceNumber = finalResults.maxPersistenceNumber
+			finalResults.maxPersistenceValue = threadResults.maxPersistenceValue
+			finalResults.maxPersistenceNumber = threadResults.maxPersistenceNumber
 		}
 		finalResults.totalPeristence.Add(&threadResults.totalPeristence, &finalResults.totalPeristence)
 	}
-	elapsed := time.Since(startTime)
-	fmt.Printf("Threads:%d\tTime:%s", nThreads, elapsed)
-	fmt.Printf("Results:\n\tMaxPersistenceValue:\t%d\n\tTotalPersistence:\t%s", finalResults.maxPersistenceValue, finalResults.totalPeristence.String())
+	// elapsed := time.Since(startTime)
+	// minutes := time.Minutes(elapsed)
+	//fmt.Printf("Threads:%d\tTime:%s", nThreads, elapsed)
+	//fmt.Printf("Results:\n\tMaxPersistenceValue:\t%d\n\tTotalPersistence:\t%s", finalResults.maxPersistenceValue, finalResults.totalPeristence.String())
 	return finalResults
 }
 
@@ -89,7 +89,7 @@ func getResults(resultsChan chan results, startValue uint64, endValue uint64, de
 		totalPeristence.Add(totalPeristence, big.NewInt(int64(loopResults)))
 	}
 	threadResults.totalPeristence = *totalPeristence
-	fmt.Println(threadResults)
+	//fmt.Println(threadResults)
 	//fmt.Printf("Thread done evaluating:\t%d\t%d\n\t(%s\t%d\t%d)\n", startValue, endValue, threadResults.totalPeristence.String(), threadResults.maxPersistenceNumber, threadResults.maxPersistenceValue)
 	resultsChan <- threadResults
 	return
